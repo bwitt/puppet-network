@@ -43,6 +43,13 @@ The following parameters are available in the `network` class:
 * [`ipaddress_provider`](#-network--ipaddress_provider)
 * [`manage_ipaddress`](#-network--manage_ipaddress)
 * [`ensure_ipaddress`](#-network--ensure_ipaddress)
+* [`manage_networkmanager`](#-network--manage_networkmanager)
+* [`networkmanager_package`](#-network--networkmanager_package)
+* [`ensure_networkmanager`](#-network--ensure_networkmanager)
+* [`manage_networkmanager_service`](#-network--manage_networkmanager_service)
+* [`networkmanager_service`](#-network--networkmanager_service)
+* [`ensure_networkmanager_service`](#-network--ensure_networkmanager_service)
+* [`enable_networkmanager_service`](#-network--enable_networkmanager_service)
 
 ##### <a name="-network--ifupdown_extra"></a>`ifupdown_extra`
 
@@ -107,6 +114,68 @@ Data type: `Stdlib::Ensure::Package`
 What state the ipaddress package should be in
 
 Default value: `absent`
+
+##### <a name="-network--manage_networkmanager"></a>`manage_networkmanager`
+
+Data type: `Boolean`
+
+Whether this class should manage the NetworkManager package
+
+Default value: `false`
+
+##### <a name="-network--networkmanager_package"></a>`networkmanager_package`
+
+Data type: `String[1]`
+
+The name of the NetworkManager package
+
+Default value:
+
+```puppet
+$facts['os']['family'] ? {
+    'Debian' => 'network-manager',
+    default  => 'NetworkManager'
+```
+
+##### <a name="-network--ensure_networkmanager"></a>`ensure_networkmanager`
+
+Data type: `Stdlib::Ensure::Package`
+
+What state the NetworkManager package should be in
+
+Default value: `present`
+
+##### <a name="-network--manage_networkmanager_service"></a>`manage_networkmanager_service`
+
+Data type: `Boolean`
+
+Whether this class should manage the NetworkManager service
+
+Default value: `false`
+
+##### <a name="-network--networkmanager_service"></a>`networkmanager_service`
+
+Data type: `String[1]`
+
+The name of the NetworkManager service
+
+Default value: `'NetworkManager'`
+
+##### <a name="-network--ensure_networkmanager_service"></a>`ensure_networkmanager_service`
+
+Data type: `Enum['running', 'stopped']`
+
+What state the NetworkManager service should be in
+
+Default value: `running`
+
+##### <a name="-network--enable_networkmanager_service"></a>`enable_networkmanager_service`
+
+Data type: `Boolean`
+
+Whether the NetworkManager service should be enabled at boot
+
+Default value: `true`
 
 ### <a name="network--bond--setup"></a>`network::bond::setup`
 

@@ -16,7 +16,13 @@ Manage non-volatile network and route configuration.
 ## Usage
 
 > [!NOTE]
-> This module defines custom types (`network_config` and `network_route`) that require proper plugin synchronization. If you encounter errors like "Could not autoload puppet/type/network_config", you may need to run `puppet generate types` on your Puppet server (for Puppet 6+) or `puppet plugin download` (for older versions). See [issue #77](https://github.com/voxpupuli/puppet-network/issues/77) for more details.
+> This module defines custom types (`network_config` and `network_route`) that
+> require proper plugin synchronization. If you encounter errors like "Could not
+> autoload puppet/type/network_config", you may need to run
+> `puppet generate types` on your Puppet server (for Puppet 6+) or
+> `puppet plugin download` (for older versions). See
+> [issue #77](https://github.com/voxpupuli/puppet-network/issues/77) for more
+> details.
 
 Interface configuration
 
@@ -46,6 +52,41 @@ network_config { 'eth1':
   onboot    => 'true',
 }
 ```
+
+NetworkManager configuration
+
+The `nm` provider manages NetworkManager connection profiles with `nmcli`. It is
+explicitly selected with `provider => 'nm'`, so existing hosts keep using their
+current OS provider unless you opt into NetworkManager per resource.
+
+```puppet
+network_config { 'Wired connection 1':
+  ensure    => 'present',
+  provider  => 'nm',
+  family    => 'inet',
+  method    => 'static',
+  ipaddress => '192.0.2.10',
+  netmask   => '255.255.255.0',
+  onboot    => true,
+  options   => {
+    'connection.interface-name' => 'enp1s0',
+    'gateway'                   => '192.0.2.1',
+    'ipv4.dns'                  => '192.0.2.53',
+  },
+}
+
+network_config { 'enp2s0':
+  ensure   => 'present',
+  provider => 'nm',
+  family   => 'inet',
+  method   => 'dhcp',
+  onboot   => true,
+}
+```
+
+The resource title is treated as the NetworkManager connection name. If the
+connection name is different from the device name, set
+`connection.interface-name` in `options`.
 
 Route configuration
 
@@ -113,28 +154,48 @@ network_route { 'default':
 }
 ```
 
+  For NetworkManager:
+
+```puppet
+network_route { '203.0.113.0/24':
+  ensure    => 'present',
+  provider  => 'nm',
+  network   => '203.0.113.0',
+  netmask   => '255.255.255.0',
+  gateway   => '192.0.2.254',
+  interface => 'Wired connection 1',
+  options   => 'metric=150',
+}
+```
+
+With the `nm` provider, `interface` is the NetworkManager connection that owns
+the route. For simple hosts this is often the device name, but it can also be a
+profile name such as `Wired connection 1`.
+
 Create resources on the fly with the `puppet resource` command:
 
-    root@debian-6:~# puppet resource network_config eth1 ensure=present family=inet method=static ipaddress=169.254.0.1 netmask=255.255.0.0
-    notice: /Network_config[eth1]/ensure: created
-    network_config { 'eth1':
-      ensure    => 'present',
-      family    => 'inet',
-      ipaddress => '169.254.0.1',
-      method    => 'static',
-      netmask   => '255.255.0.0',
-      onboot    => 'true',
-    }
+```puppet
+root@debian-6:~# puppet resource network_config eth1 ensure=present family=inet method=static ipaddress=169.254.0.1 netmask=255.255.0.0
+notice: /Network_config[eth1]/ensure: created
+network_config { 'eth1':
+  ensure    => 'present',
+  family    => 'inet',
+  ipaddress => '169.254.0.1',
+  method    => 'static',
+  netmask   => '255.255.0.0',
+  onboot    => 'true',
+}
 
-    # puppet resource network_route 23.23.42.0 ensure=present netmask=255.255.255.0 interface=eth0 gateway=192.168.1.1
-    notice: /Network_route[23.23.42.0]/ensure: created
-    network_route { '23.23.42.0':
-      ensure    => 'present',
-      gateway   => '192.168.1.1',
-      interface => 'eth0',
-      netmask   => '255.255.255.0',
-      options   => 'table 200',
-    }
+# puppet resource network_route 23.23.42.0 ensure=present netmask=255.255.255.0 interface=eth0 gateway=192.168.1.1
+notice: /Network_route[23.23.42.0]/ensure: created
+network_route { '23.23.42.0':
+  ensure    => 'present',
+  gateway   => '192.168.1.1',
+  interface => 'eth0',
+  netmask   => '255.255.255.0',
+  options   => 'table 200',
+}
+```
 
 ## Dependencies
 
@@ -150,7 +211,19 @@ include 'network'
 
 This class also provides fine-grained control over which packages to install and
 how to install them. The documentation for the parameters exposed can be found
-[here](https://github.com/voxpupuli/puppet-network/blob/master/manifests/init.pp).
+in the
+[network class parameters](https://github.com/voxpupuli/puppet-network/blob/master/manifests/init.pp).
+
+The NetworkManager provider requires the `nmcli` command and a running
+NetworkManager service. The `network` class can manage those dependencies when
+requested:
+
+```puppet
+class { 'network':
+  manage_networkmanager         => true,
+  manage_networkmanager_service => true,
+}
+```
 
 Bonding on Debian requires the package [ifenslave](https://packages.debian.org/search?suite=all&section=all&arch=any&searchon=names&keywords=ifenslave),
 which is installed automatically when a bond is defined. This package was
@@ -159,11 +232,15 @@ versions prior to 9.
 
 Note: you may also need to update your master's plugins (run on your puppet master):
 
-    puppet agent -t --noop
+```shell
+puppet agent -t --noop
+```
 
 Or on puppet 3.8.7/4.x:
 
-    puppet plugin download
+```shell
+puppet plugin download
+```
 
 - - -
 
